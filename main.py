@@ -14,8 +14,8 @@ obs, info = env.reset()
 # Upewnij się, że plik 'a2c_lunarlander.zip' znajduje się w tym samym katalogu
 # lub podaj pełną ścieżkę do pliku.
 # model = A2C.load("a2c_lunarlander", env=env)
-model = PPO.load("ppo_lunarlander", env=env)
-model.save("ppo_lunarlander")
+model = PPO.load("./best_model/best_model", env=env)
+
 # print("Testowanie wytrenowanego modelu A2C...")
 print("Testowanie wytrenowanego modelu PPO...")
 # Liczba epizodów do przetestowania

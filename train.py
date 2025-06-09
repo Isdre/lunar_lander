@@ -1,48 +1,62 @@
 import gymnasium as gym
+
 from stable_baselines3 import A2C
-from stable_baselines3 import PPO
 from stable_baselines3.common.env_util import make_vec_env
+from stable_baselines3.common.evaluation import evaluate_policy
+from stable_baselines3.common.callbacks import EvalCallback
+import os
 
-# 1. Tworzenie środowiska LunarLander-v3
-# Możesz użyć make_vec_env dla lepszej wydajności trenowania, nawet z jednym środowiskiem
-vec_env = make_vec_env("LunarLander-v3", n_envs=10)
+# 1. Create training environment with more parallel environments
+print("Creating training environment...")
+vec_env = make_vec_env("LunarLander-v3", n_envs=16)  # More parallel environments for A2C
+eval_env = make_vec_env("LunarLander-v3", n_envs=4)
 
-# 2. Inicjalizacja modelu A2C
-# Polityka "MlpPolicy" jest odpowiednia dla środowisk z ciągłymi stanami
-# i dyskretnymi akcjami, gdzie sieć neuronowa (MLP) uczy się mapowania
-# stanu na rozkład prawdopodobieństwa akcji.
-#model = A2C("MlpPolicy", vec_env, learning_rate=0.007, n_steps=5, gamma=0.99, verbose=1)
-model = PPO("MlpPolicy", vec_env, learning_rate=0.007, batch_size=64, verbose=1)
+# 2. Initialize A2C model with appropriate hyperparameters
+print("Initializing A2C model...")
+model = A2C("MlpPolicy", 
+            vec_env, 
+            learning_rate=0.0007,  # A2C typically uses higher learning rates
+            n_steps=5,             # A2C uses shorter rollout lengths
+            gamma=0.99,
+            gae_lambda=0.95,
+            ent_coef=0.01,
+            vf_coef=0.5,           # Value function coefficient
+            max_grad_norm=0.5,     # Gradient clipping
+            rms_prop_eps=1e-5,     # RMSProp optimizer epsilon
+            use_rms_prop=True,     # Use RMSProp optimizer
+            normalize_advantage=True,
+            policy_kwargs=dict(net_arch=[128, 128]),  # Larger network for A2C
+            verbose=1)
 
-# 3. Trenowanie modelu
-print("Rozpoczynam trenowanie modelu PPO...")
-model.learn(total_timesteps=50000) # Ilość kroków trenowania, którą można zwiększyć
+# 3. Train model with callback for saving best model
+print("Beginning A2C model training...")
+# Create directory for best model
+os.makedirs("./best_model", exist_ok=True)
 
-# 4. Zapisanie wytrenowanego modelu
-# model.save("a2c_lunarlander")
-model.save("ppo_lunarlander")
-print("Model PPO wytrenowany i zapisany jako ppo_lunarlander.zip")
+eval_callback = EvalCallback(eval_env, 
+                            best_model_save_path='./best_model/',
+                            log_path='./logs/', 
+                            eval_freq=5000,        # Evaluate more frequently with A2C
+                            deterministic=True, 
+                            render=False)
 
-# 5. Wczytanie i testowanie wytrenowanego modelu
-print("Testowanie wytrenowanego modelu...")
-del model # Usuń model z pamięci, aby upewnić się, że wczytujemy nowy
-# model = A2C.load("a2c_lunarlander", env=vec_env)
-model = PPO.load("ppo_lunarlander", env=vec_env)
+# Train for many steps - A2C often needs more steps than PPO
+model.learn(total_timesteps=500000, callback=eval_callback)
 
-# VecEnv.reset() zwraca tylko obserwację
-obs = vec_env.reset()
-for i in range(1000):
-    action, _states = model.predict(obs, deterministic=True)
-    
-    # POPRAWKA: VecEnv.step() zwraca 4 wartości: obs, rewards, dones, infos
-    # W VecEnv "dones" jest tablicą boolean True, jeśli środowisko jest zakończone LUB skrócone
-    obs, rewards, dones, info = vec_env.step(action)
-    
-    # Sprawdź, czy którekolwiek środowisko jest zakończone
-    if dones.any():
-        # POPRAWKA: VecEnv.reset() zwraca tylko obserwację
-        obs = vec_env.reset()
+# 4. Load and evaluate the best model
+print("Loading and evaluating best model...")
+best_model_path = "./best_model/best_model"
 
-# Zamknięcie środowiska po zakończeniu testowania
+if os.path.exists(best_model_path + ".zip"):
+    best_model = A2C.load(best_model_path, env=vec_env)
+    print("Loaded best model from saved file")
+else:
+    best_model = model
+    print("No saved model found, using current model")
+
+mean_reward, std_reward = evaluate_policy(best_model, vec_env, n_eval_episodes=10)
+print(f"Mean reward: {mean_reward:.2f} +/- {std_reward:.2f}")
+
+# No need for additional testing in training script
 vec_env.close()
-print("Testowanie zakończone.")
+print("Training complete. Test using main.py")
