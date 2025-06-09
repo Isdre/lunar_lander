@@ -1,29 +1,33 @@
 import gymnasium as gym
 from stable_baselines3 import A2C
+from stable_baselines3 import PPO
 from stable_baselines3.common.env_util import make_vec_env
 
 # 1. Tworzenie środowiska LunarLander-v3
 # Możesz użyć make_vec_env dla lepszej wydajności trenowania, nawet z jednym środowiskiem
-vec_env = make_vec_env("LunarLander-v3", n_envs=1)
+vec_env = make_vec_env("LunarLander-v3", n_envs=10)
 
 # 2. Inicjalizacja modelu A2C
 # Polityka "MlpPolicy" jest odpowiednia dla środowisk z ciągłymi stanami
 # i dyskretnymi akcjami, gdzie sieć neuronowa (MLP) uczy się mapowania
 # stanu na rozkład prawdopodobieństwa akcji.
-model = A2C("MlpPolicy", vec_env, learning_rate=0.007, n_steps=5, gamma=0.99, verbose=1)
+#model = A2C("MlpPolicy", vec_env, learning_rate=0.007, n_steps=5, gamma=0.99, verbose=1)
+model = PPO("MlpPolicy", vec_env, learning_rate=0.007, batch_size=64, verbose=1)
 
 # 3. Trenowanie modelu
-print("Rozpoczynam trenowanie modelu A2C...")
+print("Rozpoczynam trenowanie modelu PPO...")
 model.learn(total_timesteps=50000) # Ilość kroków trenowania, którą można zwiększyć
 
 # 4. Zapisanie wytrenowanego modelu
-model.save("a2c_lunarlander")
-print("Model A2C wytrenowany i zapisany jako a2c_lunarlander.zip")
+# model.save("a2c_lunarlander")
+model.save("ppo_lunarlander")
+print("Model PPO wytrenowany i zapisany jako ppo_lunarlander.zip")
 
 # 5. Wczytanie i testowanie wytrenowanego modelu
 print("Testowanie wytrenowanego modelu...")
 del model # Usuń model z pamięci, aby upewnić się, że wczytujemy nowy
-model = A2C.load("a2c_lunarlander", env=vec_env)
+# model = A2C.load("a2c_lunarlander", env=vec_env)
+model = PPO.load("ppo_lunarlander", env=vec_env)
 
 # VecEnv.reset() zwraca tylko obserwację
 obs = vec_env.reset()

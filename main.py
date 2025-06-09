@@ -1,5 +1,6 @@
 import gymnasium as gym
 from stable_baselines3 import A2C
+from stable_baselines3 import PPO
 import time
 
 # Utworzenie środowiska LunarLander-v3
@@ -12,10 +13,11 @@ obs, info = env.reset()
 # Wczytanie wytrenowanego modelu A2C
 # Upewnij się, że plik 'a2c_lunarlander.zip' znajduje się w tym samym katalogu
 # lub podaj pełną ścieżkę do pliku.
-model = A2C.load("a2c_lunarlander", env=env)
-
-print("Testowanie wytrenowanego modelu A2C...")
-
+# model = A2C.load("a2c_lunarlander", env=env)
+model = PPO.load("ppo_lunarlander", env=env)
+model.save("ppo_lunarlander")
+# print("Testowanie wytrenowanego modelu A2C...")
+print("Testowanie wytrenowanego modelu PPO...")
 # Liczba epizodów do przetestowania
 num_episodes = 5
 
